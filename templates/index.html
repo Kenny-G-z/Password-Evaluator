@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Evaluator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="card">
+        <h2>Test Your Password!</h2>
+        
+        <div class="input-group">
+            <input type="text" id="password-input" placeholder="Type a Password..." autocomplete="off">
+        </div>
+        <div class="meter-container">
+            <div id="meter-fill" class="meter-fill"></div>
+        </div>
+        <div class="results">
+            <span id="grade-text" class="grade">Awaiting input...</span>
+            <div class="right-results">
+                <span id="confidence-text" class="confidence"></span>
+                <span id="bruteforce-text" class="brute-force-subtext"></span>
+            </div>
+        </div>
+
+        <div id="api-status" class="api-status">System Ready...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputField = document.getElementById('password-input');
+            const meterFill = document.getElementById('meter-fill');
+            const gradeText = document.getElementById('grade-text');
+            const confidenceText = document.getElementById('confidence-text');
+            const bruteforceText = document.getElementById('bruteforce-text');
+            const apiStatus = document.getElementById('api-status');
+
+            let timeout = null;
+
+            inputField.addEventListener('input', () => {
+                clearTimeout(timeout);
+                const password = inputField.value;
+
+                if (password.length === 0) {
+                    resetUI();
+                    return;
+                }
+
+                timeout = setTimeout(() => {
+                    analyzePassword(password);
+                }, 100);
+            });
+
+            inputField.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    clearTimeout(timeout);
+                    const password = inputField.value;
+                    if (password.length > 0) {
+                        analyzePassword(password);
+                    }
+                }
+            });
+
+            function resetUI() {
+                meterFill.className = 'meter-fill';
+                gradeText.textContent = 'Awaiting input...';
+                confidenceText.textContent = '';
+                bruteforceText.textContent = '';
+                apiStatus.textContent = 'Ready';
+            }
+
+            async function analyzePassword(password) {
+                try {
+                    apiStatus.textContent = 'Analyzing...';
+                    
+                    const response = await fetch('http://127.0.0.1:5000/predict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ password: password })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server returned status ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    gradeText.textContent = `Complexity: ${data.label}`;
+                    confidenceText.textContent = `Time to crack: ${data.crack_time}`;
+                    bruteforceText.textContent = `(Brute Force)`;
+                    meterFill.className = `meter-fill tier-${data.tier}`;
+                    apiStatus.textContent = '';
+
+                } catch (error) {
+                    console.error("Fetch failed:", error);
+                    apiStatus.textContent = 'Error: Failed to Reach Backend!';
+                    apiStatus.style.color = '#ff4d4d';
+                }
+            }
+        });
+    </script>
+
+    <hr class="footer-line">
+    <footer>
+        <p>Created by Kenny</p>
+        <a href="https://github.com/Kenny-G-z" target="_blank">View my GitHub</a>
+    </footer>
+</body>
+
+</html>
